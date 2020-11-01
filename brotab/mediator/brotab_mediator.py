@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import nativemessaging
 import json
 import logging
 import logging.handlers
@@ -60,40 +61,22 @@ DEFAULT_GET_HTML_REPLACE_WITH = encode_query(DEFAULT_GET_HTML_REPLACE_WITH)
 
 def create_browser_remote_api(transport=None):
     if transport is None:
-        transport = StdTransport(sys.stdin.buffer, sys.stdout.buffer)
+        transport = StdTransport()
     return BrowserRemoteAPI(transport)
 
 
 class StdTransport:
-    def __init__(self, input_file, output_file):
-        self._in = input_file
-        self._out = output_file
-
     def send(self, message):
-        encoded = self._encode(message)
+        encoded = nativemessaging.encode_message(message)
         logger.info('SENDING: %s', message)
-        self._out.write(encoded['length'])
-        self._out.write(encoded['content'])
-        self._out.flush()
+        nativemessaging.send_message(encoded)
 
     def recv(self):
-        raw_rength = self._in.read(4)
-        if len(raw_rength) == 0:
-            sys.exit(0)
-        message_length = struct.unpack('@I', raw_rength)[0]
-        message = self._in.read(message_length).decode('utf8')
-        logger.info('RECEIVED: %s', message.encode('utf8'))
-        return json.loads(message)
-
-    def _encode(self, message):
-        encoded_content = json.dumps(message).encode('utf8')
-        encoded_length = struct.pack('@I', len(encoded_content))
-        return {'length': encoded_length, 'content': encoded_content}
-
+        return nativemessaging.get_message()
 
 class BrowserRemoteAPI:
     """
-    Communicates with a browser using stdin/stdout. This mediator is supposed
+    Communicates with a browser using nativemessaging. This mediator is supposed
     to be run by the browser after a request from the helper extension.
     """
 
